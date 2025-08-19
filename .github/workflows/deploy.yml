@@ -24,6 +24,13 @@ jobs:
     - name: Generate posts.json
       run: npm run generate # generate-posts.jsを実行してposts.jsonを生成
 
+    - name: Commit generated files
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git commit -m "Generate HTML articles" || echo "No changes to commit"
+
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
