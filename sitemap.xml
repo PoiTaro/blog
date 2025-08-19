@@ -1,0 +1,43 @@
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://PoiTaro.github.io/blog/</loc>
+    <lastmod>2025-08-19T10:45:20.966Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://PoiTaro.github.io/blog/index.html</loc>
+    <lastmod>2025-08-19T10:45:20.967Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://PoiTaro.github.io/blog/articles_html/recommended-point-sites.html</loc>
+    <lastmod>2025-08-16T01:29:55.715Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://PoiTaro.github.io/blog/articles_html/rakuten-spu-guide.html</loc>
+    <lastmod>2025-08-16T01:29:55.714Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://PoiTaro.github.io/blog/articles_html/paypay-points-5-tips.html</loc>
+    <lastmod>2025-08-16T01:29:55.687Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://PoiTaro.github.io/blog/articles_html/policy.html</loc>
+    <lastmod>2025-08-16T01:19:44.184Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+</urlset>

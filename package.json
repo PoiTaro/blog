@@ -1,0 +1,17 @@
+{
+  "name": "toy-blog",
+  "version": "1.0.0",
+  "main": "generate-posts.js",
+  "scripts": {
+    "build": "node generate-posts.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate": "node generate-posts.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "marked": "^16.2.0"
+  }
+}
