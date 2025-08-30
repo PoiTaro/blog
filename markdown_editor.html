@@ -3,7 +3,7 @@
 <head>
     <meta name="robots" content="noindex, nofollow">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>高機能Markdownエディタ</title>
     
     <!-- Tailwind CSS with Typography Plugin -->
@@ -18,12 +18,8 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <script>
-        // ダークモード設定
-        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        // ライトモードのみ
+        document.documentElement.classList.remove('dark');
 
         tailwind.config = {
             darkMode: 'class',
@@ -53,11 +49,12 @@
     </script>
     <style>
         /* Editor-specific styles */
-        input[type="text"], input[type="date"], textarea { width: 100%; padding: 0.5rem; border-radius: 0.25rem; font-family: 'Noto Sans JP', sans-serif; background-color: #F5F3FF; border: 4px solid #8B5CF6; transition: box-shadow 0.2s, border-color 0.2s; }
+        input[type="text"], input[type="date"], textarea { width: 100%; padding: 0.5rem; border-radius: 0.25rem; font-family: 'Noto Sans JP', sans-serif; font-size: 16px; background-color: #F5F3FF; border: 4px solid #8B5CF6; transition: box-shadow 0.2s, border-color 0.2s; }
         input[type="text"]:focus, input[type="date"]:focus, textarea:focus { outline: none; border-color: #6D28D9; box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.5); }
-        textarea#markdown-input { min-height: 400px; resize: vertical; font-family: monospace; }
+        textarea#markdown-input { min-height: 400px; resize: vertical; font-family: monospace; font-size: 16px; }
         input[type="color"] { width: 50px; height: 30px; padding: 0; border: none; cursor: pointer; }
         .blog-btn { font-family: 'Inter', sans-serif; border: none; border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.9rem; cursor: pointer; transition: all 0.1s ease-in-out; }
+        .blog-btn.active { background-color: #f59e0b !important; }
         .file-ops-btn { padding: 0.75rem 1.5rem; font-size: 1rem; border-radius: 50px; }
         .markdown-preview { background-color: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-height: 150px; overflow-wrap: break-word; border: 4px dashed #f59e0b; }
         .form-group { margin-bottom: 0.75rem; }
@@ -79,20 +76,26 @@
 </head>
 <body class="bg-white dark:bg-gray-900 font-sans text-gray-700 dark:text-gray-300 antialiased">
 
-    <!-- ===== ヘッダー ===== -->
-    <header id="header" class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
-        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <!-- ロゴ -->
-            <a href="index.html" class="flex items-center space-x-2 main-logo">
-                 <svg class="w-8 h-8 text-primary-600" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
-                <span class="text-2xl font-bold text-gray-900 dark:text-white">ポイ活Pay太郎</span>
-            </a>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">高機能Markdownエディタ</h1>
+    <main class="container mx-auto px-2 py-4 md:px-4">
+        <div id="layout-toggle" class="mb-4 flex justify-center gap-2" style="margin-top:30px;">
+            <button id="btn-split-view" class="blog-btn bg-primary-500 hover:bg-primary-600 text-white text-sm md:text-base px-3 py-2">分割ビュー</button>
+            <button id="btn-tab-view" class="blog-btn bg-secondary-500 hover:bg-secondary-600 text-white ml-2 text-sm md:text-base px-3 py-2 active">タブビュー</button>
         </div>
-    </header>
 
-    <main class="flex-grow container mx-auto mt-4 md:mt-8 p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Tab View -->
+        <div id="tab-view">
+            <div class="flex border-b bg-white dark:bg-gray-900 fixed top-0 left-0 right-0 z-50">
+                <button id="tab-editor" class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border-r">エディタ</button>
+                <button id="tab-preview" class="px-4 py-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">プレビュー</button>
+            </div>
+            <div id="tab-editor-content" class="p-4 pt-16">
+            </div>
+            <div id="tab-preview-content" class="p-4 pt-16 hidden">
+            </div>
+        </div>
+
+        <!-- Split View -->
+        <div id="split-view" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
             <section>
                 <h2 class="text-xl font-semibold mb-2 text-gray-900 dark:text-white">記事情報 (Frontmatter)</h2>
                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-4">
@@ -106,20 +109,51 @@
                 </div>
 
                 <h2 class="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Markdown入力</h2>
-                <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-lg mb-2 flex flex-wrap gap-2 items-center">
-                    <button id="btn-bold" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white" title="太字"><b>B</b></button>
-                    <button id="btn-italic" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white" title="斜体"><i>I</i></button>
-                    <button id="btn-strike" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white" title="打ち消し線"><s>S</s></button>
-                    <button id="btn-link" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white" title="リンク">Link</button>
-                    <button id="btn-image" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white" title="画像">Img</button>
-                    <button id="btn-code" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white" title="コードブロック">Code</button>
-                    <button id="btn-quote" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white" title="引用">Quote</button>
-                    <button id="btn-table" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white" title="表">Table</button>
+                <!-- Toolbar -->
+                <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded-lg mb-2">
+                    <!-- Headings Row -->
+                    <div class="flex flex-wrap gap-1 mb-2 items-center">
+                        <span class="text-xs text-gray-600 dark:text-gray-400 mr-2 font-medium">見出し:</span>
+                        <button id="btn-h1" class="blog-btn bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1" title="見出し1">H1</button>
+                        <button id="btn-h2" class="blog-btn bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1" title="見出し2">H2</button>
+                        <button id="btn-h3" class="blog-btn bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1" title="見出し3">H3</button>
+                    </div>
+                    <!-- Formatting Row -->
+                    <div class="flex flex-wrap gap-1 mb-2 items-center">
+                        <span class="text-xs text-gray-600 dark:text-gray-400 mr-2 font-medium">書式:</span>
+                        <button id="btn-bold" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white text-xs px-2 py-1" title="太字"><b>B</b></button>
+                        <button id="btn-italic" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white text-xs px-2 py-1" title="斜体"><i>I</i></button>
+                        <button id="btn-strike" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white text-xs px-2 py-1" title="打ち消し線"><s>S</s></button>
+                        <button id="btn-linebreak" class="blog-btn bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1" title="改行">⏎</button>
+                    </div>
+                    <!-- Elements Row -->
+                    <div class="flex flex-wrap gap-1 items-center">
+                        <span class="text-xs text-gray-600 dark:text-gray-400 mr-2 font-medium">要素:</span>
+                        <button id="btn-link" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white text-xs px-2 py-1" title="リンク">Link</button>
+                        <button id="btn-image" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white text-xs px-2 py-1" title="画像">Img</button>
+                        <button id="btn-code" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white text-xs px-2 py-1" title="コード">Code</button>
+                        <button id="btn-quote" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white text-xs px-2 py-1" title="引用">Quote</button>
+                        <button id="btn-table" class="blog-btn bg-primary-600 hover:bg-primary-700 text-white text-xs px-2 py-1" title="表">Table</button>
+                    </div>
                 </div>
                 <textarea id="markdown-input" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white" placeholder="ここにMarkdownを記述してください..."></textarea>
+                <div class="mt-4 bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-2 text-gray-900 dark:text-white">検索・置換</h3>
+                    <div class="flex flex-wrap gap-2 mb-2">
+                        <input type="text" id="search-input" placeholder="検索するテキスト" class="flex-grow p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:text-white">
+                        <input type="text" id="replace-input" placeholder="置換するテキスト" class="flex-grow p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:text-white">
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btn-search" class="blog-btn bg-blue-500 hover:bg-blue-600 text-white">検索</button>
+                        <button id="btn-replace" class="blog-btn bg-orange-500 hover:bg-orange-600 text-white">置換</button>
+                        <button id="btn-replace-all" class="blog-btn bg-red-500 hover:bg-red-600 text-white">すべて置換</button>
+                    </div>
+                </div>
                 <div class="flex flex-wrap gap-2 mt-4">
                     <button id="btn-file-open" class="blog-btn file-ops-btn bg-blue-500 hover:bg-blue-600 text-white">ファイルを開く</button>
                     <input type="file" id="file-input" accept=".md" class="hidden">
+                    <button id="btn-template" class="blog-btn file-ops-btn bg-indigo-500 hover:bg-indigo-600 text-white">テンプレート</button>
+                    <button id="btn-history" class="blog-btn file-ops-btn bg-teal-500 hover:bg-teal-600 text-white">履歴</button>
                     <button id="btn-reset" class="blog-btn file-ops-btn bg-red-500 hover:bg-red-600 text-white">リセット</button>
                     <button id="btn-copy" class="blog-btn file-ops-btn bg-green-500 hover:bg-green-600 text-white">全文をコピー</button>
                     <button id="btn-download" class="blog-btn file-ops-btn bg-purple-500 hover:bg-purple-600 text-white">.mdでダウンロード</button>
@@ -154,6 +188,10 @@
             const btnBold = document.getElementById('btn-bold');
             const btnItalic = document.getElementById('btn-italic');
             const btnStrike = document.getElementById('btn-strike');
+            const btnH1 = document.getElementById('btn-h1');
+            const btnH2 = document.getElementById('btn-h2');
+            const btnH3 = document.getElementById('btn-h3');
+            const btnLinebreak = document.getElementById('btn-linebreak');
             const btnLink = document.getElementById('btn-link');
             const btnImage = document.getElementById('btn-image');
             const btnCode = document.getElementById('btn-code');
@@ -164,13 +202,419 @@
             const btnReset = document.getElementById('btn-reset');
             const btnCopy = document.getElementById('btn-copy');
             const btnDownload = document.getElementById('btn-download');
+            const btnTemplate = document.getElementById('btn-template');
+            const btnHistory = document.getElementById('btn-history');
+            const searchInput = document.getElementById('search-input');
+            const replaceInput = document.getElementById('replace-input');
+            const btnSearch = document.getElementById('btn-search');
+            const btnReplace = document.getElementById('btn-replace');
+            const btnReplaceAll = document.getElementById('btn-replace-all');
+            const btnSplitView = document.getElementById('btn-split-view');
+            const btnTabView = document.getElementById('btn-tab-view');
+            const layoutToggle = document.getElementById('layout-toggle');
+            const tabView = document.getElementById('tab-view');
+            const splitView = document.getElementById('split-view');
+            const tabEditor = document.getElementById('tab-editor');
+            const tabPreview = document.getElementById('tab-preview');
+            const tabEditorContent = document.getElementById('tab-editor-content');
+            const tabPreviewContent = document.getElementById('tab-preview-content');
 
             const LOCAL_STORAGE_KEY = 'markdownEditorContent';
 
-            const updatePreview = () => { if (marked) previewArea.innerHTML = marked.parse(markdownInput.value); };
+            // Debounce function for preview update
+            const debounce = (func, delay) => {
+                let timeoutId;
+                return (...args) => {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => func.apply(null, args), delay);
+                };
+            };
+
+            const updatePreview = debounce(() => {
+                // Get current active preview area (split view or tab view)
+                const currentPreviewArea = splitView.classList.contains('hidden')
+                    ? tabPreviewContent.querySelector('#preview-area')
+                    : previewArea;
+
+                if (marked && currentPreviewArea) {
+                    currentPreviewArea.innerHTML = marked.parse(markdownInput.value);
+                }
+            }, 300);
+
             const saveContent = () => {
                 const content = { title: fmTitle.value, date: fmDate.value, image: fmImage.value, category: fmCategory.value, categoryColor: fmCategoryColor.value, description: fmDescription.value, tags: fmTags.value, markdownBody: markdownInput.value };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(content));
+            };
+
+            // Auto-save every 5 seconds
+            setInterval(saveContent, 5000);
+
+            // Version history
+            const HISTORY_KEY = 'markdownEditorHistory';
+            let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+
+            const saveToHistory = () => {
+                const currentContent = {
+                    title: fmTitle.value,
+                    date: fmDate.value,
+                    image: fmImage.value,
+                    category: fmCategory.value,
+                    categoryColor: fmCategoryColor.value,
+                    description: fmDescription.value,
+                    tags: fmTags.value,
+                    markdownBody: markdownInput.value,
+                    timestamp: new Date().toISOString()
+                };
+                history.unshift(currentContent);
+                if (history.length > 20) history.pop(); // Keep only last 20 versions
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            };
+
+            // Save to history on input
+            markdownInput.addEventListener('input', debounce(saveToHistory, 2000));
+
+            // Templates
+            const templates = {
+                blog: {
+                    title: 'ブログ記事',
+                    markdownBody: `# ブログ記事のタイトル
+
+## 導入
+
+この記事では、[トピック]について説明します。
+
+## 本文
+
+### セクション1
+
+内容をここに記述してください。
+
+### セクション2
+
+- ポイント1
+- ポイント2
+- ポイント3
+
+## まとめ
+
+まとめの内容をここに記述してください。
+
+---
+
+*この記事は参考情報です。*`
+                },
+                document: {
+                    title: '技術ドキュメント',
+                    markdownBody: `# 技術ドキュメント
+
+## 概要
+
+このドキュメントは[プロジェクト/システム]の技術仕様を記載します。
+
+## 仕様
+
+### 要件
+
+- 要件1
+- 要件2
+- 要件3
+
+### 実装
+
+\`\`\`javascript
+// サンプルコード
+function example() {
+    console.log('Hello World');
+}
+\`\`\`
+
+### API
+
+| エンドポイント | メソッド | 説明 |
+|---------------|---------|------|
+| /api/example | GET | サンプル取得 |
+
+## 参考資料
+
+- [参考リンク1](https://example.com)
+- [参考リンク2](https://example.com)`
+                },
+                guide: {
+                    title: 'ガイド記事',
+                    markdownBody: `# 初心者向けガイド
+
+## このガイドについて
+
+このガイドでは、[トピック]の基本から応用までを解説します。
+
+## 準備
+
+### 必要なもの
+
+- アイテム1
+- アイテム2
+- アイテム3
+
+### インストール
+
+1. ステップ1
+2. ステップ2
+3. ステップ3
+
+## 基本操作
+
+### 基本操作1
+
+操作の説明をここに記述してください。
+
+### 基本操作2
+
+操作の説明をここに記述してください。
+
+## よくある質問
+
+**Q: 質問1?**
+A: 回答1
+
+**Q: 質問2?**
+A: 回答2
+
+## 次のステップ
+
+このガイドの次に学ぶべき内容：
+- [関連トピック1]
+- [関連トピック2]`
+                }
+            };
+
+            // Load custom templates from localStorage
+            const loadCustomTemplates = () => {
+                const custom = localStorage.getItem('markdownCustomTemplates');
+                return custom ? JSON.parse(custom) : {};
+            };
+
+            // Save custom templates to localStorage
+            const saveCustomTemplates = (customTemplates) => {
+                localStorage.setItem('markdownCustomTemplates', JSON.stringify(customTemplates));
+            };
+
+            // Template selection
+            const selectTemplate = () => {
+                const customTemplates = loadCustomTemplates();
+                const allTemplates = { ...templates, ...customTemplates };
+                const templateNames = Object.keys(allTemplates);
+
+                const options = templateNames.map((name, i) => `${i + 1}. ${allTemplates[name].title}`).join('\n');
+                const newOption = `\n${templateNames.length + 1}. 新規テンプレート作成`;
+                const selected = prompt('テンプレートを選択してください:\n' + options + newOption, '1');
+
+                if (!selected) return;
+
+                const selectedNum = parseInt(selected);
+                if (selectedNum && selectedNum >= 1 && selectedNum <= templateNames.length) {
+                    // Apply existing template
+                    const templateKey = templateNames[selectedNum - 1];
+                    const template = allTemplates[templateKey];
+
+                    // Get current active elements (split view or tab view)
+                    const currentFmTitle = document.getElementById('fm-title');
+                    const currentMarkdownInput = document.getElementById('markdown-input');
+                    const currentFmDate = document.getElementById('fm-date');
+
+                    if (currentFmTitle) currentFmTitle.value = template.title;
+                    if (currentMarkdownInput) currentMarkdownInput.value = template.markdownBody;
+                    if (currentFmDate) currentFmDate.valueAsDate = new Date();
+
+                    updatePreview();
+                    saveContent();
+                    alert('テンプレートを適用しました！');
+                } else if (selectedNum === templateNames.length + 1) {
+                    // Create new template
+                    createNewTemplate();
+                }
+            };
+
+            // Create new template
+            const createNewTemplate = () => {
+                const currentFmTitle = document.getElementById('fm-title');
+                const currentMarkdownInput = document.getElementById('markdown-input');
+
+                const templateName = prompt('新規テンプレートの名前を入力してください:');
+                if (!templateName) return;
+
+                const customTemplates = loadCustomTemplates();
+                if (customTemplates[templateName]) {
+                    if (!confirm(`"${templateName}"は既に存在します。上書きしますか？`)) return;
+                }
+
+                customTemplates[templateName] = {
+                    title: currentFmTitle ? currentFmTitle.value : templateName,
+                    markdownBody: currentMarkdownInput ? currentMarkdownInput.value : ''
+                };
+
+                saveCustomTemplates(customTemplates);
+                alert(`テンプレート"${templateName}"を保存しました！`);
+            };
+
+            // History selection
+            const selectHistory = () => {
+                if (history.length === 0) {
+                    alert('履歴がありません。');
+                    return;
+                }
+                const historyList = history.map((item, i) =>
+                    `${i + 1}. ${item.title || '無題'} (${new Date(item.timestamp).toLocaleString()})`
+                ).join('\n');
+                const selected = prompt('復元するバージョンを選択してください:\n' + historyList, '1');
+                if (selected && !isNaN(selected) && selected >= 1 && selected <= history.length) {
+                    const version = history[selected - 1];
+                    fmTitle.value = version.title || '';
+                    fmDate.value = version.date || '';
+                    fmImage.value = version.image || '';
+                    fmCategory.value = version.category || '';
+                    fmCategoryColor.value = version.categoryColor || '';
+                    fmDescription.value = version.description || '';
+                    fmTags.value = version.tags || '';
+                    markdownInput.value = version.markdownBody || '';
+                    updatePreview();
+                    saveContent();
+                    alert('過去のバージョンに復元しました！');
+                }
+            };
+
+            // Keyboard shortcuts
+            markdownInput.addEventListener('keydown', (e) => {
+                // Shift+Enter for line break
+                if (e.shiftKey && e.key === 'Enter') {
+                    e.preventDefault();
+                    const cursorPos = markdownInput.selectionStart;
+                    const textBefore = markdownInput.value.substring(0, cursorPos);
+                    const textAfter = markdownInput.value.substring(cursorPos);
+                    markdownInput.value = textBefore + '<br>\n' + textAfter;
+                    markdownInput.selectionStart = cursorPos + 5; // <br>\n is 5 characters
+                    markdownInput.selectionEnd = cursorPos + 5;
+                    updatePreview(); saveContent();
+                    return;
+                }
+
+                if (e.ctrlKey || e.metaKey) {
+                    switch (e.key) {
+                        case 'b':
+                            e.preventDefault();
+                            wrapText('**', '**', '太字');
+                            break;
+                        case 'i':
+                            e.preventDefault();
+                            wrapText('*', '*', '斜体');
+                            break;
+                        case 's':
+                            if (e.shiftKey) {
+                                e.preventDefault();
+                                wrapText('~~', '~~', '打ち消し線');
+                            } else {
+                                e.preventDefault();
+                                saveContent();
+                                alert('保存しました！');
+                            }
+                            break;
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                            e.preventDefault();
+                            const level = parseInt(e.key);
+                            const hashes = '#'.repeat(level) + ' ';
+                            insertMarkdown(hashes, `見出し${level}`);
+                            break;
+                        case 'k':
+                            e.preventDefault();
+                            insertLink();
+                            break;
+                        case 'g':
+                            e.preventDefault();
+                            insertImage();
+                            break;
+                        case 'q':
+                            e.preventDefault();
+                            insertMarkdown('> ', '引用');
+                            break;
+                        case 'm':
+                            e.preventDefault();
+                            insertTable();
+                            break;
+                    }
+                }
+            });
+
+            // Drag and drop for file upload
+            markdownInput.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+            });
+
+            markdownInput.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => parseAndLoadMarkdown(e.target.result);
+                        reader.readAsText(file);
+                    } else {
+                        alert('Markdownファイルのみ対応しています。');
+                    }
+                }
+            });
+
+            // Search and replace functionality
+            let searchIndex = -1;
+            const searchText = () => {
+                const text = searchInput.value;
+                if (!text) return;
+                const content = markdownInput.value;
+                const index = content.indexOf(text, searchIndex + 1);
+                if (index !== -1) {
+                    searchIndex = index;
+                    markdownInput.focus();
+                    markdownInput.selectionStart = index;
+                    markdownInput.selectionEnd = index + text.length;
+                } else {
+                    alert('見つかりませんでした。');
+                    searchIndex = -1;
+                }
+            };
+
+            const replaceText = () => {
+                const text = searchInput.value;
+                const replace = replaceInput.value;
+                if (!text) return;
+                const content = markdownInput.value;
+                if (markdownInput.selectionStart !== markdownInput.selectionEnd) {
+                    const start = markdownInput.selectionStart;
+                    const end = markdownInput.selectionEnd;
+                    const selected = content.substring(start, end);
+                    if (selected === text) {
+                        markdownInput.value = content.substring(0, start) + replace + content.substring(end);
+                        markdownInput.selectionStart = start + replace.length;
+                        markdownInput.selectionEnd = start + replace.length;
+                        updatePreview(); saveContent();
+                        searchIndex = start;
+                    }
+                }
+            };
+
+            const replaceAllText = () => {
+                const text = searchInput.value;
+                const replace = replaceInput.value;
+                if (!text) return;
+                const content = markdownInput.value;
+                markdownInput.value = content.replaceAll(text, replace);
+                updatePreview(); saveContent();
+                searchIndex = -1;
+                alert('すべて置換しました。');
             };
 
             const wrapText = (before, after, placeholder = '') => {
@@ -276,6 +720,19 @@
 
             [...document.querySelectorAll('input, textarea')].forEach(el => el.addEventListener('input', () => { updatePreview(); saveContent(); }));
             fmColorPicker.addEventListener('input', () => { fmCategoryColor.value = fmColorPicker.value; saveContent(); });
+            btnH1.addEventListener('click', () => insertMarkdown('# ', '見出し1'));
+            btnH2.addEventListener('click', () => insertMarkdown('## ', '見出し2'));
+            btnH3.addEventListener('click', () => insertMarkdown('### ', '見出し3'));
+            btnLinebreak.addEventListener('click', () => {
+                const cursorPos = markdownInput.selectionStart;
+                const textBefore = markdownInput.value.substring(0, cursorPos);
+                const textAfter = markdownInput.value.substring(cursorPos);
+                markdownInput.value = textBefore + '<br>\n' + textAfter;
+                markdownInput.selectionStart = cursorPos + 5;
+                markdownInput.selectionEnd = cursorPos + 5;
+                markdownInput.focus();
+                updatePreview(); saveContent();
+            });
             btnBold.addEventListener('click', () => wrapText('**', '**', '太字'));
             btnItalic.addEventListener('click', () => wrapText('*', '*', '斜体'));
             btnStrike.addEventListener('click', () => wrapText('~~', '~~', '打ち消し線'));
@@ -301,6 +758,90 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 alert('Markdownファイルがダウンロードされました！');
+            });
+            btnSearch.addEventListener('click', searchText);
+            btnReplace.addEventListener('click', replaceText);
+            btnReplaceAll.addEventListener('click', replaceAllText);
+            btnTemplate.addEventListener('click', selectTemplate);
+            btnHistory.addEventListener('click', selectHistory);
+
+            // Layout toggle
+            const editorSection = document.querySelector('#split-view section:first-child');
+            const previewSection = document.querySelector('#split-view section:last-child');
+
+            const switchToSplitView = () => {
+                if (!tabView.classList.contains('hidden')) {
+                    tabView.classList.add('hidden');
+                    splitView.classList.remove('hidden');
+                    btnSplitView.classList.add('active');
+                    btnTabView.classList.remove('active');
+                    // Move sections back to split view
+                    while (tabEditorContent.firstChild) {
+                        splitView.appendChild(tabEditorContent.firstChild);
+                    }
+                    while (tabPreviewContent.firstChild) {
+                        splitView.appendChild(tabPreviewContent.firstChild);
+                    }
+                } else {
+                    alert('すでに分割ビューです。');
+                }
+            };
+
+            const switchToTabView = () => {
+                splitView.classList.add('hidden');
+                tabView.classList.remove('hidden');
+                btnTabView.classList.add('active');
+                btnSplitView.classList.remove('active');
+                // Move editor section to tab-editor-content
+                tabEditorContent.appendChild(editorSection);
+                // Move preview section to tab-preview-content
+                tabPreviewContent.appendChild(previewSection);
+                // Re-bind events if necessary (but since elements are moved, events should persist)
+            };
+
+            btnSplitView.addEventListener('click', switchToSplitView);
+            btnTabView.addEventListener('click', switchToTabView);
+
+            // Scroll position storage
+            let editorScrollTop = 0;
+            let previewScrollTop = 0;
+
+            // Tab switching
+            tabEditor.addEventListener('click', () => {
+                // Save preview scroll position
+                previewScrollTop = tabPreviewContent.scrollTop;
+
+                tabEditorContent.classList.remove('hidden');
+                tabPreviewContent.classList.add('hidden');
+                tabEditor.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white');
+                tabEditor.classList.remove('bg-white', 'dark:bg-gray-900', 'text-gray-500', 'dark:text-gray-400');
+                tabPreview.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white');
+                tabPreview.classList.add('bg-white', 'dark:bg-gray-900', 'text-gray-500', 'dark:text-gray-400');
+
+                // Scroll to Markdown input area
+                setTimeout(() => {
+                    const markdownInput = tabEditorContent.querySelector('#markdown-input');
+                    if (markdownInput) {
+                        markdownInput.scrollIntoView({ behavior: 'auto', block: 'start' });
+                    }
+                }, 10);
+            });
+
+            tabPreview.addEventListener('click', () => {
+                // Save editor scroll position
+                editorScrollTop = tabEditorContent.scrollTop;
+                // Restore preview scroll position
+                setTimeout(() => {
+                    tabPreviewContent.scrollTop = previewScrollTop;
+                }, 0);
+
+                tabPreviewContent.classList.remove('hidden');
+                tabEditorContent.classList.add('hidden');
+                tabPreview.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white');
+                tabPreview.classList.remove('bg-white', 'dark:bg-gray-900', 'text-gray-500', 'dark:text-gray-400');
+                tabEditor.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'text-gray-900', 'dark:text-white');
+                tabEditor.classList.add('bg-white', 'dark:bg-gray-900', 'text-gray-500', 'dark:text-gray-400');
+                updatePreview();
             });
 
             loadContent();
