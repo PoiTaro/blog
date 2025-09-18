@@ -51,13 +51,36 @@ const articleFiles = fs.readdirSync(articlesDir).filter(file => file.endsWith('.
 const articleTemplate = fs.readFileSync(articleTemplatePath, 'utf8');
 
 // 2. 各ファイルの情報を取得し、新しい順にソート
-const posts = articleFiles.map(file => {
+const rawPosts = articleFiles.map(file => {
     const filePath = path.join(articlesDir, file);
     const content = fs.readFileSync(filePath, 'utf8');
     const stats = fs.statSync(filePath);
     const attributes = parseFrontmatter(content);
     const markdownContent = extractMarkdownContent(content);
-    const htmlContent = marked(markdownContent); // MarkdownをHTMLに変換
+    let htmlContent = marked(markdownContent); // MarkdownをHTMLに変換
+
+    // H2見出しを抽出して目次を作成し、本文内のH2にidアンカーを付与
+    const h2Regex = /<h2>(.*?)<\/h2>/g;
+    const h2Matches = [...htmlContent.matchAll(h2Regex)].map(m => m[1]);
+    const slugify = (s) => s
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/<[^>]+>/g, '') // strip HTML
+        .replace(/&[^;]+;/g, '') // strip entities
+        .replace(/[^a-z0-9\u3040-\u30ff\u4e00-\u9faf\s-]/g, '') // keep jp chars
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+
+    const h2Anchors = h2Matches.map(text => ({ text, id: slugify(text) }));
+    if (h2Anchors.length > 0) {
+        // 本文の<h2>にidを付与
+        h2Anchors.forEach(({ id, text }) => {
+            const h2Tag = `<h2>${text}</h2>`;
+            const h2TagWithId = `<h2 id="${id}">${text}</h2>`;
+            htmlContent = htmlContent.replace(h2Tag, h2TagWithId);
+        });
+    }
 
     const slug = file.replace(/\.md$/, ''); // ファイル名からスラッグを生成
     const articleHtmlFileName = `${slug}.html`;
@@ -74,22 +97,7 @@ const posts = articleFiles.map(file => {
         tagsHtml = '<!-- No tags, hide section -->';
     }
 
-    // テンプレートにデータを挿入してHTMLファイルを生成
-    let finalHtml = articleTemplate
-        .replace(/{{title}}/g, attributes.title || '無題の記事')
-        .replace(/{{date}}/g, attributes.date || new Date(stats.mtime).toISOString().split('T')[0])
-        .replace(/{{category}}/g, attributes.category || '未分類')
-        .replace(/{{description}}/g, attributes.description || '記事の説明がありません。')
-        .replace(/{{image}}/g, attributes.image || 'https://placehold.co/600x400/gray/FFFFFF?text=No+Image')
-        .replace(/{{url}}/g, articleAbsoluteUrl)
-        .replace(/{{alt_title}}/g, attributes.title || '無題の記事')
-        .replace(/{{categoryColor}}/g, attributes.categoryColor || 'red') // カテゴリカラーを挿入
-        .replace(/<!-- Tags will be displayed here -->/g, tagsHtml) // タグHTMLを挿入
-        .replace(/{{content}}/g, htmlContent);
-
-    fs.writeFileSync(articleHtmlFilePath, finalHtml);
-
-    return {
+        return {
         slug: slug, // スラッグを追加
         url: articleRelativeUrl, // 新しいURL形式
         mtime: stats.mtime.getTime(),
@@ -100,12 +108,113 @@ const posts = articleFiles.map(file => {
         image: attributes.image || 'https://placehold.co/600x400/gray/FFFFFF?text=No+Image',
         description: attributes.description || '記事の説明がありません。',
         tags: attributes.tags || [],
-        content: htmlContent // Add the full HTML content
+            content: htmlContent, // Add the full HTML content
+            toc: h2Anchors, // Array of {text, id}
+                articleHtmlFilePath,
+                articleAbsoluteUrl,
+                tagsHtml
     };
 }).sort((a, b) => b.mtime - a.mtime); // 降順（新しいものが先頭）にソート
 
-// 3. posts.jsonファイルに書き出す（mtimeは不要なので除外）
-const finalPosts = posts.map(({ mtime, ...rest }) => rest);
+// 関連記事を計算する関数（タグ一致を優先、次にカテゴリ一致。自分自身は除外。最大3件）
+function getRelatedPosts(current, all) {
+    const candidates = all.filter(p => p.slug !== current.slug);
+    const score = (p) => {
+        const tagOverlap = (current.tags || []).filter(t => (p.tags || []).includes(t)).length;
+        const categoryBonus = current.category && p.category && current.category === p.category ? 0.5 : 0;
+        return tagOverlap + categoryBonus;
+    };
+    const scored = candidates
+        .map(p => ({ p, s: score(p) }))
+        .sort((a, b) => b.s - a.s || b.p.mtime - a.p.mtime);
+
+    // まずスコア>0を優先的に最大3件
+    const primary = scored.filter(({ s }) => s > 0).slice(0, 3).map(({ p }) => p);
+    if (primary.length === 3) return primary;
+
+    // 足りない分は最新順で補充（重複を避ける）
+    const need = 3 - primary.length;
+    const fallback = candidates
+        .filter(p => !primary.some(pp => pp.slug === p.slug))
+        .sort((a, b) => b.mtime - a.mtime)
+        .slice(0, need);
+    return primary.concat(fallback);
+}
+
+// 関連記事セクションのHTMLを生成
+function buildRelatedHtml(related) {
+        if (!related || related.length === 0) return '';
+        return `
+        <section class="mt-12">
+            <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">関連記事</h2>
+            <div class="grid gap-6 md:grid-cols-3">
+                ${related.map(r => `
+                    <a href="../${r.url}" class="group block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition">
+                        <div class="w-full aspect-video overflow-hidden">
+                            <img src="${r.image}" alt="${r.title}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="p-4">
+                            <p class="text-xs font-semibold text-primary-600 dark:text-primary-400 mb-1">${r.category || ''}</p>
+                            <h3 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 line-clamp-2">${r.title}</h3>
+                        </div>
+                    </a>
+                `).join('')}
+            </div>
+        </section>
+        `;
+}
+
+// 目次のHTMLを生成（H2のみ）
+function buildTocHtml(toc) {
+        if (!toc || toc.length === 0) return '';
+        return `
+        <nav aria-label="目次" class="mb-8">
+            <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-800/50 backdrop-blur px-5 py-4">
+                <div class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+                    目次
+                </div>
+                <ul class="space-y-1">
+                    ${toc.map(item => `
+                        <li>
+                            <a href="#${item.id}" class="block text-sm text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                                ${item.text}
+                            </a>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        </nav>`;
+}
+
+// 3. 各記事の最終HTMLを生成（関連記事を挿入）
+rawPosts.forEach(current => {
+        const related = getRelatedPosts(current, rawPosts);
+        const relatedHtml = buildRelatedHtml(related);
+    const tocHtml = buildTocHtml(current.toc);
+
+        let finalHtml = articleTemplate
+                .replace(/{{title}}/g, current.title)
+                .replace(/{{date}}/g, current.date)
+                .replace(/{{category}}/g, current.category)
+                .replace(/{{description}}/g, current.description)
+                .replace(/{{image}}/g, current.image)
+                .replace(/{{url}}/g, current.articleAbsoluteUrl)
+                .replace(/{{alt_title}}/g, current.title)
+                .replace(/{{categoryColor}}/g, current.categoryColor)
+                .replace(/<!-- Tags will be displayed here -->/g, current.tagsHtml)
+            .replace(/<!-- TOC will be displayed here -->/g, tocHtml)
+            .replace(/{{content}}/g, current.content)
+                .replace(/<!-- Related posts will be displayed here -->/g, relatedHtml);
+
+        fs.writeFileSync(current.articleHtmlFilePath, finalHtml);
+});
+
+// posts.jsonファイルに書き出す（公開メタ + 更新日時）
+const finalPosts = rawPosts.map(({ mtime, articleHtmlFilePath, articleAbsoluteUrl, tagsHtml, content, ...rest }) => ({
+    ...rest,
+    updatedAt: new Date(mtime).toISOString()
+}));
 fs.writeFileSync(postsJsonPath, JSON.stringify(finalPosts, null, 4));
 
 console.log(`Successfully generated posts.json with ${finalPosts.length} articles.`);
@@ -126,7 +235,13 @@ const sitemapContent = `
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-${posts.map(post => `
+    <url>
+        <loc>${baseUrl}contact.html</loc>
+        <lastmod>${new Date().toISOString()}</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.4</priority>
+    </url>
+${rawPosts.map(post => `
   <url>
     <loc>${baseUrl}${post.url}</loc>
     <lastmod>${new Date(post.mtime).toISOString()}</lastmod>
