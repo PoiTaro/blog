@@ -1,7 +1,7 @@
 ---
 title: "【ポケポケ】パックを無料で毎日開封！学生でもできるポイ活でポケモンカードを集める裏ワザ"
 date: "2025-09-18"
-image: "[https://placehold.co/1280x720/FFCB05/000000?text=Pokepoke](https://placehold.co/1280x720/FFCB05/000000?text=Pokepoke)"
+image: "https://placehold.co/1280x720/FFCB05/000000?text=Pokepoke](https://placehold.co/1280x720/FFCB05/000000?text=Pokepoke"
 category: "ゲーム"
 categoryColor: "yellow"
 description: "話題のポケモンカードゲーム ポケット（ポケポケ）！もっとパックを開けたいけどお小遣いが…。そんな悩みを解決！完全無料で、しかも学生でも安全にできる「ポイ活」で課金パックを手に入れる方法を徹底解説します。"
