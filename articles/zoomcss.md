@@ -44,10 +44,12 @@ select {
   border: 1px solid #ccc;
   font-size: 14px; /* ←これが原因！16px未満なのでズームする */
 }
+```
 
 このfont-size: 14px;が、自動ズームの引き金になっています。
 【OK例】解決コード
 次に、この問題を解決するコードです。font-sizeの値を変更するだけ。
+```css
 /* 解決コード例 */
 input[type="text"],
 textarea,
@@ -57,7 +59,7 @@ select {
   border: 1px solid #ccc;
   font-size: 16px; /* ←16px以上に設定！これだけでOK */
 }
-
+```
 たったこれだけです。font-sizeを16px（もしくはそれ以上）に設定することで、iOSは「このフォームは十分な大きさだから、ズームしなくても大丈夫だな」と判断し、自動拡大をストップしてくれます。
 やってはいけない注意点！metaタグでの制御は非推奨
 「昔、metaタグにuser-scalable=noって書く方法があったような…？」と思った方、鋭いですね。
