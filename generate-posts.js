@@ -97,6 +97,16 @@ const rawPosts = articleFiles.map(file => {
         tagsHtml = '<!-- No tags, hide section -->';
     }
 
+        // Determine image fields: prefer frontmatter keys (thumbnail, image, image_url) as-provided.
+        const fmImage = attributes.thumbnail || attributes.image || attributes.image_url || attributes.imageUrl || attributes.img || null;
+        // image: used in templates directly (must be a usable URL or path as provided in frontmatter)
+        const imageValue = fmImage || 'https://placehold.co/600x400/gray/FFFFFF?text=No+Image';
+        // imageLocal: preserve relative/local path if frontmatter included a relative path starting with ../ or ./ or /thumbnails
+        const isRelative = fmImage && (/^(\.|\.\.|\/|thumbnails|\.\/|\.\.\/)/.test(fmImage));
+        const imageLocalValue = isRelative ? fmImage : imageValue;
+        // imageAbsolute: if the provided value looks absolute (starts with http), keep it; otherwise, prefix with baseUrl
+        const imageAbsoluteValue = fmImage && /^https?:\/\//.test(fmImage) ? fmImage : (isRelative ? `${baseUrl}${fmImage.replace(/^\.\/?/, '')}` : imageValue);
+
         return {
         slug: slug, // スラッグを追加
         url: articleRelativeUrl, // 新しいURL形式
@@ -105,7 +115,9 @@ const rawPosts = articleFiles.map(file => {
         date: attributes.date || new Date(stats.mtime).toISOString().split('T')[0],
         category: attributes.category || '未分類',
         categoryColor: attributes.categoryColor || 'gray',
-        image: attributes.image || 'https://placehold.co/600x400/gray/FFFFFF?text=No+Image',
+    image: imageValue,
+    imageLocal: imageLocalValue,
+    imageAbsolute: imageAbsoluteValue,
         description: attributes.description || '記事の説明がありません。',
         tags: attributes.tags || [],
             content: htmlContent, // Add the full HTML content
