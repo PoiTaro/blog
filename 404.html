@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Redirecting...</title>
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; line-height: 1.6; padding: 2rem; }
+  </style>
+</head>
+<body>
+  <p>このページは移動しました。自動で新しいURLへ転送します。</p>
+  <p id="fallback" style="display:none"></p>
+  <script>
+    (function() {
+      var origin = 'https://poitaro.github.io';
+      var loc = window.location;
+
+      function setFallback(url) {
+        try {
+          var a = document.createElement('a');
+          a.href = url;
+          a.textContent = '移動されない場合はこちらをクリックしてください';
+          var p = document.getElementById('fallback');
+          p.style.display = 'block';
+          p.innerHTML = '';
+          p.appendChild(a);
+        } catch (_) {}
+      }
+
+      function normalize(pathname) {
+        // Remove any leading /blog/
+        var p = pathname.replace(/^\/blog\//, '/');
+        // Collapse duplicate slashes
+        p = p.replace(/\/+/, '/');
+        return p;
+      }
+
+      function filenameBase(pathname) {
+        var seg = pathname.split('?')[0].split('#')[0];
+        var parts = seg.split('/');
+        var last = parts[parts.length - 1] || '';
+        // If path ends with slash, use previous segment
+        if (!last && parts.length > 1) last = parts[parts.length - 2];
+        return last.replace(/\.[^/.]+$/, ''); // drop extension
+      }
+
+      function toAbsolute(urlPath) {
+        if (!urlPath) return origin + '/';
+        if (urlPath.startsWith('http')) return urlPath;
+        if (!urlPath.startsWith('/')) urlPath = '/' + urlPath;
+        return origin + urlPath;
+      }
+
+      async function findRedirectTarget(pathname) {
+        // 1) If it already points into articles_html, keep it
+        if (/^\/articles_html\//i.test(pathname)) {
+          return pathname;
+        }
+
+        var base = filenameBase(pathname).toLowerCase();
+        if (!base) return '/';
+
+        // 2) Try direct mapping to articles_html/<base>.html
+        var direct = '/articles_html/' + base + '.html';
+        // We cannot HEAD-check on GitHub Pages from 404 easily; optimistic redirect
+        // We'll still prefer posts.json data if available.
+
+        try {
+          var res = await fetch('/posts.json', { cache: 'no-store' });
+          if (res.ok) {
+            var posts = await res.json();
+            // Build quick maps
+            var exact = null;
+            var candidates = [];
+            for (var i = 0; i < posts.length; i++) {
+              var u = posts[i] && posts[i].url ? String(posts[i].url) : '';
+              if (!u) continue;
+              // Ensure leading slash for consistency
+              if (!u.startsWith('/')) u = '/' + u;
+              var slug = String(posts[i].slug || '').toLowerCase();
+              var fileBase = filenameBase(u).toLowerCase();
+              if (base === slug || base === fileBase) {
+                exact = u; // perfect match
+                break;
+              }
+              // fuzzy: startsWith/contains
+              var score = 0;
+              if (slug.startsWith(base) || base.startsWith(slug)) score += 2;
+              if (fileBase.startsWith(base) || base.startsWith(fileBase)) score += 2;
+              if (!score && (slug.includes(base) || fileBase.includes(base))) score += 1;
+              if (score) candidates.push({ url: u, score });
+            }
+            if (exact) return exact;
+            if (candidates.length) {
+              candidates.sort(function(a, b){ return b.score - a.score; });
+              return candidates[0].url;
+            }
+          }
+        } catch (_) {
+          // ignore
+        }
+
+        return direct; // best-effort
+      }
+
+      (async function run(){
+        try {
+          var normalized = normalize(loc.pathname);
+          var targetPath = await findRedirectTarget(normalized);
+          var newUrl = toAbsolute(targetPath) + loc.search + loc.hash;
+          setFallback(newUrl);
+          loc.replace(newUrl);
+        } catch (e) {
+          // Fallback to site root
+          var root = origin + '/';
+          setFallback(root);
+          loc.replace(root);
+        }
+      })();
+    })();
+  </script>
+</body>
+</html>
