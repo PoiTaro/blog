@@ -3,10 +3,179 @@
 <head>
   <meta charset="UTF-8">
   <title>Redirecting...</title>
-  <meta http-equiv="refresh" content="0; url=https://poitaro.github.io/article-template.html">
+  <meta name="robots" content="noindex">
+  <script>
+    (function() {
+      try {
+        var loc = window.location;
+        var oldUrl = loc.href;
+        var url = new URL(oldUrl);
+        // Step 1: strip one '/blog/' segment from pathname (only once)
+        if (url.pathname.indexOf('/blog/') === 0) {
+          url.pathname = url.pathname.replace('/blog/', '/');
+        }
+
+        // Step 2: if this is article-template.html with query params, try to map to articles_html/<slug>.html
+        var params = url.searchParams;
+        var slug = null;
+        var candidates = ['slug','name','article','post','id'];
+        for (var i=0;i<candidates.length && !slug;i++) {
+          var v = params.get(candidates[i]);
+          if (v) slug = v.trim();
+        }
+
+        // If explicit file/url/path parameter exists, prefer that
+        var fileParam = params.get('file') || params.get('url') || params.get('path') || null;
+
+        var destPath = null;
+        if (fileParam) {
+          var p = fileParam.trim();
+          // Remove potential leading domain and '/blog/'
+          try { p = new URL(p, url.origin).pathname; } catch(_) { /* keep as-is */ }
+          p = p.replace(/^\/blog\//, '/');
+          // Ensure it points into /articles_html/
+          if (!/\.html?$/.test(p)) {
+            // maybe given as slug
+            p = '/articles_html/' + p.replace(/^\/+/, '') + '.html';
+          } else if (!/^\/articles_html\//.test(p)) {
+            p = '/articles_html/' + p.replace(/^\/+/, '');
+          }
+          destPath = p;
+        } else if (slug) {
+          // sanitize slug: keep filename-safe
+          slug = slug.replace(/\.+/g,'.').replace(/[^\w\-\u3040-\u30ff\u4e00-\u9faf]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+          destPath = '/articles_html/' + slug + '.html';
+        }
+
+        function redirect(to) {
+          if (to && to !== oldUrl) window.location.replace(to);
+        }
+
+        if (destPath) {
+          // preserve hash, drop query since it's now encoded in path
+          redirect(url.origin + destPath + (url.hash || ''));
+          return;
+        }
+
+        // Attempt lookup via posts.json using text-like params
+        var textKeyCandidates = ['title','t','q','keyword','k'];
+        var qText = null;
+        for (var j=0; j < textKeyCandidates.length && !qText; j++) {
+          var val = params.get(textKeyCandidates[j]);
+          if (val) qText = val.trim();
+        }
+
+        if (qText) {
+          var slugify = function (s) {
+            return (s||'').toString().trim().toLowerCase()
+              .replace(/<[^>]+>/g,'')
+              .replace(/&[^;]+;/g,'')
+              .replace(/[^a-z0-9\u3040-\u30ff\u4e00-\u9faf\s-]/g,'')
+              .replace(/\s+/g,'-')
+              .replace(/-+/g,'-');
+          };
+          var desired = qText;
+          var desiredSlug = slugify(qText).replace(/^-|-$/g,'');
+
+          fetch('/posts.json').then(function(r){return r.json();}).then(function(posts){
+            if (!Array.isArray(posts)) { redirect(url.toString()); return; }
+            var lower = function(x){return (x||'').toString().toLowerCase();};
+            var best = null;
+            // 1) exact slug match
+            best = posts.find(function(p){ return p && p.slug && lower(p.slug) === lower(desiredSlug); });
+            // 2) exact title match
+            if (!best) best = posts.find(function(p){ return p && p.title && lower(p.title) === lower(desired); });
+            // 3) slug contains desiredSlug
+            if (!best && desiredSlug) best = posts.find(function(p){ return p && p.slug && lower(p.slug).indexOf(lower(desiredSlug)) >= 0; });
+            // 4) title contains desired
+            if (!best) best = posts.find(function(p){ return p && p.title && lower(p.title).indexOf(lower(desired)) >= 0; });
+
+            if (best && best.slug) {
+              redirect(url.origin + '/articles_html/' + best.slug + '.html' + (url.hash || ''));
+            } else {
+              redirect(url.toString());
+            }
+          }).catch(function(){ redirect(url.toString()); });
+          return;
+        }
+
+        // Fallback: just use stripped /blog/ URL preserving query & hash
+        redirect(url.toString());
+      } catch (e) {
+        // noop
+      }
+    })();
+  </script>
+  <noscript>
+    <!-- JS無効時のフォールバック: トップへ -->
+    <meta http-equiv="refresh" content="0; url=/">
+  </noscript>
+  <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";line-height:1.6;padding:2rem}</style>
+  
 </head>
 <body>
   <p>このページは新しいURLに移動しました。自動で転送されます。</p>
-  <a href="https://poitaro.github.io/article-template.html">移動されない場合はこちらをクリックしてください</a>
+  <p><a id="fallback" href="/">移動されない場合はこちらをクリックしてください</a></p>
+  <script>
+    (function() {
+      try {
+        var loc = window.location;
+        var url = new URL(loc.href);
+        if (url.pathname.indexOf('/blog/') === 0) url.pathname = url.pathname.replace('/blog/', '/');
+        var params = url.searchParams;
+        var slug = null;
+        var candidates = ['slug','name','article','post','id'];
+        for (var i=0;i<candidates.length && !slug;i++) {
+          var v = params.get(candidates[i]);
+          if (v) slug = v.trim();
+        }
+        var fileParam = params.get('file') || params.get('url') || params.get('path') || null;
+        var destPath = null;
+        if (fileParam) {
+          var p = fileParam.trim();
+          try { p = new URL(p, url.origin).pathname; } catch(_) {}
+          p = p.replace(/^\/blog\//, '/');
+          if (!/\.html?$/.test(p)) p = '/articles_html/' + p.replace(/^\/+/, '') + '.html';
+          else if (!/^\/articles_html\//.test(p)) p = '/articles_html/' + p.replace(/^\/+/, '');
+          destPath = p;
+        } else if (slug) {
+          slug = slug.replace(/\.+/g,'.').replace(/[^\w\-\u3040-\u30ff\u4e00-\u9faf]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+          destPath = '/articles_html/' + slug + '.html';
+        }
+        function setHref(to){ var a = document.getElementById('fallback'); if (a) a.href = to; }
+        if (destPath) { setHref(url.origin + destPath + (url.hash || '')); return; }
+
+        var textKeyCandidates = ['title','t','q','keyword','k'];
+        var qText = null;
+        for (var j=0; j < textKeyCandidates.length && !qText; j++) {
+          var val = params.get(textKeyCandidates[j]);
+          if (val) qText = val.trim();
+        }
+        if (qText) {
+          var slugify = function (s) {
+            return (s||'').toString().trim().toLowerCase()
+              .replace(/<[^>]+>/g,'')
+              .replace(/&[^;]+;/g,'')
+              .replace(/[^a-z0-9\u3040-\u30ff\u4e00-\u9faf\s-]/g,'')
+              .replace(/\s+/g,'-')
+              .replace(/-+/g,'-');
+          };
+          var desired = qText;
+          var desiredSlug = slugify(qText).replace(/^-|-$/g,'');
+          fetch('/posts.json').then(function(r){return r.json();}).then(function(posts){
+            var lower = function(x){return (x||'').toString().toLowerCase();};
+            var best = posts.find(function(p){ return p && p.slug && lower(p.slug) === lower(desiredSlug); })
+                    || posts.find(function(p){ return p && p.title && lower(p.title) === lower(desired); })
+                    || posts.find(function(p){ return p && p.slug && lower(p.slug).indexOf(lower(desiredSlug)) >= 0; })
+                    || posts.find(function(p){ return p && p.title && lower(p.title).indexOf(lower(desired)) >= 0; });
+            if (best && best.slug) setHref(url.origin + '/articles_html/' + best.slug + '.html' + (url.hash || ''));
+            else setHref(url.toString());
+          }).catch(function(){ setHref(url.toString()); });
+        } else {
+          setHref(url.toString());
+        }
+      } catch (e) {}
+    })();
+  </script>
 </body>
 </html>
